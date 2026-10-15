@@ -661,7 +661,13 @@ function setupSpreadsheet() {
             const dayOfWeek = dateObj.getDay(); // 0 = Minggu, 1 = Senin, 2 = Selasa, 3 = Rabu, 4 = Kamis, 5 = Jumat, 6 = Sabtu
 
             if (store === "AD" || store === "WI") {
-                const isFirstPerson = (adminName.toLowerCase().startsWith('f') || (adminName.toLowerCase().startsWith('i') && adminName !== "Ist") || adminName.toLowerCase().startsWith('n'));
+                // Penentuan urutan admin agar bertolak belakang (Orang 1 vs Orang 2)
+                let isFirstPerson = false;
+                if (store === "AD") {
+                    isFirstPerson = (adminName.toLowerCase() === "fir");
+                } else if (store === "WI") {
+                    isFirstPerson = (adminName.toLowerCase() === "int");
+                }
 
                 // Cek apakah masuk blok akhir pekan (Sabtu=6, Minggu=0, Senin=1)
                 if (dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
