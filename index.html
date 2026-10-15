@@ -1,990 +1,1080 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Penjadwalan Admin & Editor</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Jadwal & Cuti Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
         }
-      }
-    }
-  </script>
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      height: 8px;
-      width: 8px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-    /* Sticky Frozen Columns */
-    .sticky-col-toko {
-      position: sticky;
-      left: 0;
-      z-index: 10;
-      background-color: #f8fafc;
-    }
-    .sticky-col-nama {
-      position: sticky;
-      left: 70px;
-      z-index: 10;
-      background-color: #ffffff;
-    }
-    thead .sticky-col-toko, thead .sticky-col-nama {
-      z-index: 20;
-      background-color: #1e293b !important;
-    }
-    /* Clean neutral white background matrix cells as requested */
-    .cell-neutral {
-      background-color: #ffffff !important;
-      color: #0f172a !important;
-      font-weight: 600;
-    }
-    .cell-backup {
-      background-color: #fef08a !important; /* Yellow for Backup */
-      color: #854d0e !important;
-      font-weight: 700;
-    }
-    .cell-cuti {
-      background-color: #fecdd3 !important; /* Light red for Cuti */
-      color: #9f1239 !important;
-      font-weight: 700;
-    }
-    .cell-wfh {
-      background-color: #e0e7ff !important; /* Light indigo for Minggu/WFH */
-      color: #3730a3 !important;
-      font-weight: 600;
-    }
-  </style>
+    </script>
+    <style>
+        .table-container {
+            position: relative;
+            max-height: 550px;
+            overflow: auto;
+        }
+
+        /* Fixed Sticky Column Widths & Offsets */
+        .sticky-col-1 {
+            position: sticky;
+            left: 0;
+            z-index: 20;
+            width: 70px;
+            min-width: 70px;
+            max-width: 70px;
+        }
+        
+        .sticky-col-2 {
+            position: sticky;
+            left: 70px; /* Exact width offset from column 1 */
+            z-index: 20;
+            width: 90px;
+            min-width: 90px;
+            max-width: 90px;
+        }
+
+        /* Top Sticky Headers */
+        .table-sticky thead tr:first-child th {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+        }
+
+        .table-sticky thead tr:nth-child(2) th {
+            position: sticky;
+            top: 28px;
+            z-index: 30;
+        }
+
+        /* Top-Left Corner Intersection (highest z-index to prevent collision/overlap) */
+        .table-sticky thead tr:first-child th.sticky-col-1,
+        .table-sticky thead tr:first-child th.sticky-col-2 {
+            z-index: 40 !important;
+        }
+
+        .table-sticky thead tr:nth-child(2) th.sticky-col-1,
+        .table-sticky thead tr:nth-child(2) th.sticky-col-2 {
+            z-index: 40 !important;
+        }
+
+        /* Highlight Cell Cuti & Backup */
+        .cell-cuti {
+            background-color: #fecdd3 !important; /* Red 200 */
+            color: #9f1239 !important; /* Red 800 */
+            font-weight: 800 !important;
+        }
+        .cell-backup {
+            background-color: #fef08a !important; /* Yellow 200 */
+            color: #854d0e !important; /* Yellow 800 */
+            font-weight: 800 !important;
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
 
-  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="p-2 bg-sky-500 rounded-lg text-white">
-          <i class="fa-solid fa-calendar-days text-xl"></i>
-        </div>
-        <div>
-          <h1 class="font-bold text-lg leading-tight">Jadwal Admin & Editor</h1>
-          <p class="text-xs text-slate-400">Toko AD, CC, WI | Sistem Manajemen Tim & Google Sheets</p>
-        </div>
-      </div>
-      
-      <!-- GAS Connection Button & Tabs -->
-      <div class="flex items-center space-x-3">
-        <button onclick="openModalGasConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5">
-          <i class="fa-solid fa-file-excel"></i> Koneksi Spreadsheet (GAS)
-        </button>
-        <nav class="hidden md:flex space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
-          <button id="btn-tab-jadwal" onclick="switchTab('jadwal')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 bg-sky-600 text-white shadow-sm flex items-center gap-2">
-            <i class="fa-solid fa-table-cells"></i> Matriks Jadwal
-          </button>
-          <button id="btn-tab-anggota" onclick="switchTab('anggota')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all duration-200 flex items-center gap-2">
-            <i class="fa-solid fa-users"></i> Anggota <span id="badge-total-anggota" class="bg-slate-700 text-sky-400 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
-          </button>
-          <button id="btn-tab-cuti" onclick="switchTab('cuti')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all duration-200 flex items-center gap-2">
-            <i class="fa-solid fa-plane-departure"></i> Cuti & Backup
-          </button>
-        </nav>
-      </div>
-    </div>
-  </header>
-
-  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase text-slate-400">Total Admin</p>
-          <p id="stat-admin-count" class="text-2xl font-bold text-slate-800">0</p>
-        </div>
-        <div class="w-10 h-10 bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center font-bold">
-          <i class="fa-solid fa-user-gear"></i>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase text-slate-400">Total Editor</p>
-          <p id="stat-editor-count" class="text-2xl font-bold text-slate-800">0</p>
-        </div>
-        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold">
-          <i class="fa-solid fa-pen-nib"></i>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase text-slate-400">Toko Tercover</p>
-          <p class="text-2xl font-bold text-slate-800">3 Toko</p>
-        </div>
-        <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center font-bold">
-          <i class="fa-solid fa-store"></i>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase text-slate-400">Pengajuan Cuti/Backup</p>
-          <p id="stat-cuti-count" class="text-2xl font-bold text-amber-600">0 Data</p>
-        </div>
-        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center font-bold">
-          <i class="fa-solid fa-user-clock"></i>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mobile Nav Bar -->
-    <div class="md:hidden flex justify-center space-x-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-      <button id="btn-tab-jadwal-m" onclick="switchTab('jadwal')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1">
-        <i class="fa-solid fa-table-cells"></i> Jadwal
-      </button>
-      <button id="btn-tab-anggota-m" onclick="switchTab('anggota')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-700 bg-slate-100 flex items-center gap-1">
-        <i class="fa-solid fa-users"></i> Anggota
-      </button>
-      <button id="btn-tab-cuti-m" onclick="switchTab('cuti')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-700 bg-slate-100 flex items-center gap-1">
-        <i class="fa-solid fa-plane-departure"></i> Cuti
-      </button>
-    </div>
-
-    <section id="tab-jadwal" class="space-y-6">
-      
-      <!-- Toolbar Filter & Rolling 3-Month Period Selector -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center space-x-2">
-            <span class="text-xs font-semibold text-slate-500 uppercase">Periode (3 Bulan Rolling):</span>
-            <select id="select-bulan" onchange="changeBulan()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-sky-500 outline-none font-medium">
-              <!-- Dynamically populated 3 months rolling -->
-            </select>
-          </div>
-          <button onclick="jumpToCurrentMonth()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5">
-            <i class="fa-solid fa-calendar-check text-sky-600"></i> Bulan Ini
-          </button>
-          <button onclick="syncDataFromGAS()" id="btn-sync-gas" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5">
-            <i class="fa-solid fa-rotate"></i> Sinkronisasi GAS
-          </button>
-        </div>
-
-        <!-- Legend -->
-        <div class="flex flex-wrap items-center gap-2 text-xs">
-          <span class="font-semibold text-slate-500">Legend:</span>
-          <span class="inline-flex items-center gap-1 bg-white border border-slate-300 text-slate-800 font-medium px-2 py-0.5 rounded shadow-sm">
-            1, 2, 0 (Masuk Kantor)
-          </span>
-          <span class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded border border-indigo-200">
-            Minggu (WFH)
-          </span>
-          <span class="inline-flex items-center gap-1 bg-rose-100 text-rose-800 font-semibold px-2 py-0.5 rounded border border-rose-300">
-            Cuti
-          </span>
-          <span class="inline-flex items-center gap-1 bg-yellow-200 text-yellow-900 font-semibold px-2 py-0.5 rounded border border-yellow-400">
-            Backup (Kuning)
-          </span>
-        </div>
-      </div>
-
-      <!-- TABLE 1: JADWAL ADMIN -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-user-shield text-sky-600"></i>
-            <h3 class="font-bold text-slate-800">Jadwal Admin Toko (AD, CC, WI)</h3>
-          </div>
-          <span class="text-xs text-slate-500 italic">* Kolom Toko & Nama dikunci (Frozen). Total Masuk dihitung Senin s.d. Sabtu.</span>
-        </div>
-        <div class="overflow-x-auto custom-scrollbar max-h-[550px]">
-          <table class="w-full text-xs text-left text-slate-700 border-collapse">
-            <thead class="bg-slate-800 text-white uppercase text-[11px] font-semibold sticky top-0 z-30">
-              <tr id="header-jadwal-admin">
-                <!-- Dynamic Header -->
-              </tr>
-            </thead>
-            <tbody id="tbody-jadwal-admin" class="divide-y divide-slate-200">
-              <tr>
-                <td colspan="35" class="px-4 py-8 text-center text-slate-400 italic">Belum ada data anggota admin. Silakan tambah anggota baru atau hubungkan ke Google Sheets (GAS).</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- TABLE 2: JADWAL EDITOR -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-pen-ruler text-indigo-600"></i>
-            <h3 class="font-bold text-slate-800">Jadwal Editor Toko</h3>
-          </div>
-        </div>
-        <div class="overflow-x-auto custom-scrollbar max-h-[450px]">
-          <table class="w-full text-xs text-left text-slate-700 border-collapse">
-            <thead class="bg-slate-800 text-white uppercase text-[11px] font-semibold sticky top-0 z-30">
-              <tr id="header-jadwal-editor">
-                <!-- Dynamic Header -->
-              </tr>
-            </thead>
-            <tbody id="tbody-jadwal-editor" class="divide-y divide-slate-200">
-              <tr>
-                <td colspan="35" class="px-4 py-8 text-center text-slate-400 italic">Belum ada data anggota editor.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </section>
-
-    <section id="tab-anggota" class="space-y-6 hidden">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
-        
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">Daftar Anggota Tim Admin & Editor</h3>
-            <p class="text-xs text-slate-500">Kelola data seluruh staf admin toko dan editor visual.</p>
-          </div>
-          <button onclick="openModalAnggota()" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
-            <i class="fa-solid fa-user-plus"></i> Tambah Anggota Baru
-          </button>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left text-slate-600 border border-slate-200 rounded-lg overflow-hidden">
-            <thead class="bg-slate-100 text-slate-700 font-semibold uppercase text-xs border-b border-slate-200">
-              <tr>
-                <th class="px-4 py-3">ID Anggota</th>
-                <th class="px-4 py-3">Nama Anggota</th>
-                <th class="px-4 py-3">Peran / Jabatan</th>
-                <th class="px-4 py-3">Penempatan Toko</th>
-                <th class="px-4 py-3">Status Pekerja</th>
-                <th class="px-4 py-3 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-master-anggota" class="divide-y divide-slate-200 bg-white">
-              <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">Data kosong. Silakan tambahkan anggota.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-    </section>
-
-    <section id="tab-cuti" class="space-y-6 hidden">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
-        
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">Input Cuti & Penetapan Admin Backup</h3>
-            <p class="text-xs text-slate-500">Catat anggota yang cuti dan tetapkan anggota lain sebagai backup (warna kuning pada jadwal).</p>
-          </div>
-          <button onclick="openModalCuti()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
-            <i class="fa-solid fa-user-pen"></i> + Input Cuti & Backup
-          </button>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left text-slate-600 border border-slate-200 rounded-lg overflow-hidden">
-            <thead class="bg-slate-100 text-slate-700 font-semibold uppercase text-xs border-b border-slate-200">
-              <tr>
-                <th class="px-4 py-3">ID</th>
-                <th class="px-4 py-3">Anggota Cuti</th>
-                <th class="px-4 py-3">Petugas Backup (Kuning)</th>
-                <th class="px-4 py-3">Tanggal</th>
-                <th class="px-4 py-3">Keterangan Alasan</th>
-                <th class="px-4 py-3 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-data-cuti" class="divide-y divide-slate-200 bg-white">
-              <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">Belum ada catatan cuti.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-    </section>
-
-  </main>
-
-  <!-- MODAL: KONEKSI GOOGLE APPS SCRIPT (GAS) -->
-  <div id="modal-gas-config" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 border border-slate-200">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> Konfigurasi Google Apps Script (GAS)</h3>
-        <button onclick="closeModalGasConfig()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="space-y-4 text-xs text-slate-600 leading-relaxed">
-        <p>Masukkan URL Web App dari Google Apps Script (GAS) Anda agar aplikasi ini dapat membaca & menyimpan data secara otomatis ke Google Spreadsheet.</p>
-        <div>
-          <label class="block font-semibold text-slate-700 mb-1">Web App URL (GAS Deployment URL):</label>
-          <input type="text" id="input-gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono">
-        </div>
-        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
-          <p class="font-bold text-slate-700">Panduan Singkat GAS Script:</p>
-          <code class="block bg-slate-900 text-emerald-400 p-2 rounded text-[11px] overflow-x-auto font-mono">
-            function doGet(e) {<br>
-            &nbsp;&nbsp;var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Data");<br>
-            &nbsp;&nbsp;var data = sheet.getDataRange().getValues();<br>
-            &nbsp;&nbsp;return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);<br>
-            }<br>
-            function doPost(e) {<br>
-            &nbsp;&nbsp;// Handle save data payload here<br>
-            &nbsp;&nbsp;return ContentService.createTextOutput(JSON.stringify({status: "success"})).setMimeType(ContentService.MimeType.JSON);<br>
-            }
-          </code>
-        </div>
-      </div>
-      <div class="pt-2 flex justify-end space-x-2">
-        <button type="button" onclick="closeModalGasConfig()" class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200">Batal</button>
-        <button type="button" onclick="saveGasUrl()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700">Simpan & Uji Koneksi</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: TAMBAH/EDIT ANGGOTA -->
-  <div id="modal-anggota" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5 border border-slate-200">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h3 id="modal-anggota-title" class="font-bold text-lg text-slate-800">Tambah Anggota Baru</h3>
-        <button onclick="closeModalAnggota()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="form-anggota" onsubmit="handleSaveAnggota(event)" class="space-y-4">
-        <input type="hidden" id="input-anggota-id-edit">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Anggota</label>
-          <input type="text" id="input-nama" required placeholder="Contoh: Budi" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Peran</label>
-            <select id="select-peran" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-              <option value="Admin">Admin</option>
-              <option value="Editor">Editor</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Toko</label>
-            <select id="select-toko" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-              <option value="AD">Toko AD</option>
-              <option value="CC">Toko CC</option>
-              <option value="WI">Toko WI</option>
-              <option value="Flexsible">Flexsible</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Status Keanggotaan</label>
-          <select id="select-status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-            <option value="Aktif">Aktif</option>
-            <option value="Dalam Proses Cari">Dalam Proses Cari</option>
-          </select>
-        </div>
-        <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" onclick="closeModalAnggota()" class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200">Batal</button>
-          <button type="submit" class="px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-lg hover:bg-sky-700">Simpan Data</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL: TAMBAH CUTI & BACKUP -->
-  <div id="modal-cuti" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5 border border-slate-200">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h3 class="font-bold text-lg text-slate-800">Form Cuti & Penunjukan Backup</h3>
-        <button onclick="closeModalCuti()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="form-cuti" onsubmit="handleSaveCuti(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota yang Cuti / Izin</label>
-          <select id="select-cuti-anggota" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-            <!-- Populated via JS -->
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Pengganti / Backup (Warna Kuning)</label>
-          <select id="select-backup-anggota" required class="w-full bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-            <!-- Populated via JS -->
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Cuti</label>
-          <input type="date" id="input-cuti-tanggal" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Keterangan Alasan</label>
-          <textarea id="input-cuti-alasan" rows="2" placeholder="Contoh: Kepentingan Keluarga" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none"></textarea>
-        </div>
-        <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" onclick="closeModalCuti()" class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200">Batal</button>
-          <button type="submit" class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700">Simpan & Terapkan Jadwal</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    // Data dikosongkan sesuai permintaan
-    let anggotaList = [];
-    let monthlySchedules = {};
-    let cutiList = [];
-    let currentSelectedMonthKey = '';
-    let gasWebAppUrl = localStorage.getItem('gas_webapp_url') || '';
-
-    const namaBulanIndo = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ];
-
-    window.onload = function() {
-      generateRollingMonthOptions();
-      renderAll();
-      if (gasWebAppUrl) {
-        document.getElementById('input-gas-url').value = gasWebAppUrl;
-      }
-    };
-
-    function openModalGasConfig() {
-      document.getElementById('modal-gas-config').classList.remove('hidden');
-    }
-
-    function closeModalGasConfig() {
-      document.getElementById('modal-gas-config').classList.add('hidden');
-    }
-
-    function saveGasUrl() {
-      const url = document.getElementById('input-gas-url').value.trim();
-      gasWebAppUrl = url;
-      localStorage.setItem('gas_webapp_url', url);
-      closeModalGasConfig();
-      if (url) {
-        syncDataFromGAS();
-      } else {
-        alert('URL GAS berhasil dikosongkan.');
-      }
-    }
-
-    async function syncDataFromGAS() {
-      if (!gasWebAppUrl) {
-        openModalGasConfig();
-        return;
-      }
-      
-      const btn = document.getElementById('btn-sync-gas');
-      const originalHtml = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyinkronkan...`;
-      btn.disabled = true;
-
-      try {
-        const response = await fetch(gasWebAppUrl);
-        const result = await response.json();
-        if (result && Array.isArray(result)) {
-          // Process rows from Spreadsheet if format matches
-          alert('Berhasil terhubung dan mengambil data dari Google Spreadsheet!');
-        } else {
-          alert('Koneksi berhasil, namun format data spreadsheet belum dikenali.');
-        }
-      } catch (error) {
-        console.error(error);
-        alert('Gagal menyinkronkan dengan GAS. Pastikan Web App URL aktif dan mengizinkan akses publik (Anyone).');
-      } finally {
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-      }
-    }
-
-    function generateRollingMonthOptions() {
-      const select = document.getElementById('select-bulan');
-      select.innerHTML = '';
-
-      const now = new Date();
-      let currentYear = now.getFullYear();
-      let currentMonth = now.getMonth();
-
-      let optionsHtml = '';
-      for (let i = 0; i < 3; i++) {
-        let targetDate = new Date(currentYear, currentMonth + i, 1);
-        let m = targetDate.getMonth();
-        let y = targetDate.getFullYear();
-        let mStr = String(m + 1).padStart(2, '0');
-        let val = `${mStr}-${y}`;
-        let label = `${namaBulanIndo[m]} ${y}`;
-        optionsHtml += `<option value="${val}">${label}</option>`;
-      }
-      select.innerHTML = optionsHtml;
-      
-      let defaultVal = `${String(currentMonth + 1).padStart(2, '0')}-${currentYear}`;
-      if (select.querySelector(`option[value="${defaultVal}"]`)) {
-        select.value = defaultVal;
-      } else {
-        select.selectedIndex = 0;
-      }
-      currentSelectedMonthKey = select.value;
-    }
-
-    function jumpToCurrentMonth() {
-      const now = new Date();
-      let currentYear = now.getFullYear();
-      let currentMonth = now.getMonth();
-      let defaultVal = `${String(currentMonth + 1).padStart(2, '0')}-${currentYear}`;
-      
-      const select = document.getElementById('select-bulan');
-      if (select.querySelector(`option[value="${defaultVal}"]`)) {
-        select.value = defaultVal;
-        currentSelectedMonthKey = defaultVal;
-        renderAll();
-      } else {
-        generateRollingMonthOptions();
-        renderAll();
-      }
-    }
-
-    function changeBulan() {
-      const select = document.getElementById('select-bulan');
-      currentSelectedMonthKey = select.value;
-      renderAll();
-    }
-
-    function getDaysInSelectedPeriod() {
-      const parts = currentSelectedMonthKey.split('-');
-      const month = parseInt(parts[0], 10);
-      const year = parseInt(parts[1], 10);
-      return new Date(year, month, 0).getDate();
-    }
-
-    function getSundaysInPeriod() {
-      const parts = currentSelectedMonthKey.split('-');
-      const month = parseInt(parts[0], 10);
-      const year = parseInt(parts[1], 10);
-      const daysCount = getDaysInSelectedPeriod();
-      let sundays = [];
-
-      for (let d = 1; d <= daysCount; d++) {
-        let dateObj = new Date(year, month - 1, d);
-        if (dateObj.getDay() === 0) {
-          sundays.push(d);
-        }
-      }
-      return sundays;
-    }
-
-    function getOrCreateMatrixForCurrentPeriod() {
-      if (!monthlySchedules[currentSelectedMonthKey]) {
-        let daysCount = getDaysInSelectedPeriod();
-        let matrix = {};
-        anggotaList.forEach((a) => {
-          let row = [];
-          for (let d = 1; d <= daysCount; d++) {
-            row.push(a.peran === 'Admin' ? 1 : (a.status === 'Aktif' ? 1 : 0));
-          }
-          matrix[a.id] = row;
-        });
-        monthlySchedules[currentSelectedMonthKey] = matrix;
-      }
-      return monthlySchedules[currentSelectedMonthKey];
-    }
-
-    function renderAll() {
-      renderHeaderJadwal();
-      renderJadwalTables();
-      renderMasterAnggota();
-      renderCutiTable();
-      updateMetrics();
-    }
-
-    function switchTab(tabName) {
-      document.getElementById('tab-jadwal').classList.add('hidden');
-      document.getElementById('tab-anggota').classList.add('hidden');
-      document.getElementById('tab-cuti').classList.add('hidden');
-
-      const tabs = ['jadwal', 'anggota', 'cuti'];
-      tabs.forEach(t => {
-        const btnDesktop = document.getElementById(`btn-tab-${t}`);
-        const btnMobile = document.getElementById(`btn-tab-${t}-m`);
-        if (btnDesktop) btnDesktop.className = "px-3 py-1.5 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all flex items-center gap-2";
-        if (btnMobile) btnMobile.className = "px-3 py-1.5 text-xs font-medium rounded-lg text-slate-700 bg-slate-100 flex items-center gap-1";
-      });
-
-      if (tabName === 'jadwal') {
-        document.getElementById('tab-jadwal').classList.remove('hidden');
-        if(document.getElementById('btn-tab-jadwal')) document.getElementById('btn-tab-jadwal').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-2";
-        if(document.getElementById('btn-tab-jadwal-m')) document.getElementById('btn-tab-jadwal-m').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1";
-      } else if (tabName === 'anggota') {
-        document.getElementById('tab-anggota').classList.remove('hidden');
-        if(document.getElementById('btn-tab-anggota')) document.getElementById('btn-tab-anggota').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-2";
-        if(document.getElementById('btn-tab-anggota-m')) document.getElementById('btn-tab-anggota-m').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1";
-      } else if (tabName === 'cuti') {
-        document.getElementById('tab-cuti').classList.remove('hidden');
-        if(document.getElementById('btn-tab-cuti')) document.getElementById('btn-tab-cuti').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-2";
-        if(document.getElementById('btn-tab-cuti-m')) document.getElementById('btn-tab-cuti-m').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1";
-      }
-    }
-
-    function renderHeaderJadwal() {
-      const daysCount = getDaysInSelectedPeriod();
-      const sundays = getSundaysInPeriod();
-
-      let html = `
-        <th class="px-2 py-2.5 text-center min-w-[70px] sticky-col-toko left-0 bg-slate-900 border-r border-slate-700">Nama Toko</th>
-        <th class="px-3 py-2.5 text-left min-w-[90px] sticky-col-nama left-[70px] bg-slate-900 border-r border-slate-700">Nama Admin</th>
-      `;
-      for (let d = 1; d <= daysCount; d++) {
-        const isMinggu = sundays.includes(d);
-        html += `<th class="px-1 py-2 text-center w-7 ${isMinggu ? 'bg-indigo-900 text-indigo-200 font-bold' : ''}">${d}</th>`;
-      }
-      html += `
-        <th class="px-2 py-2.5 text-center min-w-[70px] bg-slate-900">Jumlah Masuk</th>
-        <th class="px-2 py-2.5 text-center min-w-[65px] bg-sky-900">Admin 1</th>
-        <th class="px-2 py-2.5 text-center min-w-[65px] bg-emerald-900">Admin 2</th>
-      `;
-      document.getElementById('header-jadwal-admin').innerHTML = html;
-
-      let htmlEditor = `
-        <th class="px-2 py-2.5 text-center min-w-[70px] sticky-col-toko left-0 bg-slate-900 border-r border-slate-700">Nama Toko</th>
-        <th class="px-3 py-2.5 text-left min-w-[90px] sticky-col-nama left-[70px] bg-slate-900 border-r border-slate-700">Editor</th>
-      `;
-      for (let d = 1; d <= daysCount; d++) {
-        const isMinggu = sundays.includes(d);
-        htmlEditor += `<th class="px-1 py-2 text-center w-7 ${isMinggu ? 'bg-indigo-900 text-indigo-200 font-bold' : ''}">${d}</th>`;
-      }
-      htmlEditor += `<th class="px-2 py-2.5 text-center min-w-[80px] bg-slate-900">Jumlah Masuk</th>`;
-      document.getElementById('header-jadwal-editor').innerHTML = htmlEditor;
-    }
-
-    function renderJadwalTables() {
-      const daysCount = getDaysInSelectedPeriod();
-      const sundays = getSundaysInPeriod();
-      const jadwalMatrix = getOrCreateMatrixForCurrentPeriod();
-
-      const adminList = anggotaList.filter(a => a.peran === 'Admin');
-      const editorList = anggotaList.filter(a => a.peran === 'Editor');
-
-      if (adminList.length === 0) {
-        document.getElementById('tbody-jadwal-admin').innerHTML = `<tr><td colspan="${daysCount + 5}" class="px-4 py-8 text-center text-slate-400 italic">Belum ada data anggota admin.</td></tr>`;
-      } else {
-        let tbodyAdmin = '';
-        adminList.forEach((admin) => {
-          const matrix = jadwalMatrix[admin.id] || Array(daysCount).fill(1);
-          let jmlMasuk = 0;
-          let countShift1 = 0;
-          let countShift2 = 0;
-
-          matrix.forEach((val, dayIndex) => {
-            const dayNum = dayIndex + 1;
-            const isMinggu = sundays.includes(dayNum);
+    <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-[98%] mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-700 p-2 rounded-lg border border-indigo-500 shadow-inner">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide">Sistem Jadwal Admin & Editor (2026)</h1>
+                    <p class="text-xs text-indigo-300">Sabtu-Senin (3 Hari Sama) | Selasa-Jumat (Rolling Harian) | 0 = Libur / Siap Backup</p>
+                </div>
+            </div>
             
-            if (!isMinggu) {
-              if (val === 1 || val === '1') { countShift1++; jmlMasuk++; }
-              else if (val === 2 || val === '2') { countShift2++; jmlMasuk++; }
-              else if (val === 0 || val === '0' || val === 'Backup') { jmlMasuk++; }
+            <div class="flex items-center space-x-3">
+                <!-- Pemilih Bulan dan Tahun (Hanya November 2026 ke atas) -->
+                <div class="flex items-center space-x-2 bg-indigo-950 px-3 py-1.5 rounded-lg text-xs border border-indigo-700">
+                    <label class="text-indigo-200 font-medium">Periode:</label>
+                    <select id="select-month" onchange="changePeriod()" class="bg-indigo-900 text-white font-bold rounded px-2 py-1 outline-none border border-indigo-600">
+                        <option value="10" selected>November</option>
+                        <option value="11">Desember</option>
+                    </select>
+                    <select id="select-year" onchange="changePeriod()" class="bg-indigo-900 text-white font-bold rounded px-2 py-1 outline-none border border-indigo-600">
+                        <option value="2026" selected>2026</option>
+                    </select>
+                </div>
+
+                <!-- Tombol Pengaturan URL Web App GAS -->
+                <button onclick="openGasModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-indigo-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                    Koneksi GAS API
+                </button>
+
+                <div class="flex items-center space-x-2 bg-indigo-950 px-3 py-1.5 rounded-lg text-xs border border-indigo-700">
+                    <span id="sync-indicator" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="sync-status" class="text-indigo-200 font-medium">Belum Terhubung ke Spreadsheet</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[98%] mx-auto px-2 py-6 space-y-6">
+        
+        <div class="flex flex-wrap gap-2 border-b border-slate-300 pb-2 bg-white p-2 rounded-xl shadow-sm">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition bg-indigo-700 text-white shadow">
+                Jadwal Admin & Editor
+            </button>
+            <button onclick="switchTab('permit')" id="tab-permit" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200">
+                Ajukan Cuti & Backup
+            </button>
+            <button onclick="switchTab('matrix')" id="tab-matrix" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200">
+                Matriks Cuti & Backup
+            </button>
+            <button onclick="switchTab('gas')" id="tab-gas" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200">
+                Panduan & Kode GAS API
+            </button>
+        </div>
+
+        <section id="section-dashboard" class="space-y-6">
+            
+            <!-- Legenda Status -->
+            <div class="bg-white p-3 rounded-xl shadow border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div class="flex items-center space-x-4">
+                    <span class="font-bold text-slate-700">Legenda Status:</span>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-5 h-5 bg-slate-100 border border-slate-300 font-bold text-center text-[10px] leading-5 rounded">1</span>
+                        <span>Admin 1 (Bertugas)</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-5 h-5 bg-slate-100 border border-slate-300 font-bold text-center text-[10px] leading-5 rounded">2</span>
+                        <span>Admin 2 (Bertugas)</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-5 h-5 bg-emerald-100 text-emerald-800 font-bold text-center text-[10px] leading-5 rounded">0</span>
+                        <span>0 (Masuk / Siap Backup)</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 border-l pl-4 border-slate-300">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="px-2 py-0.5 cell-cuti rounded text-[11px]">Cuti</span>
+                        <span class="text-slate-600">(Izin Cuti - Tidak Masuk)</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="px-2 py-0.5 cell-backup rounded text-[11px]">Backup</span>
+                        <span class="text-slate-600">(Admin/Editor Pengganti)</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="px-2 py-0.5 bg-red-50 text-red-600 font-bold rounded text-[11px]">Hari Minggu</span>
+                        <span class="text-slate-600">(Libur Rutin)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Jadwal Admin -->
+            <div class="bg-white rounded-xl shadow border border-slate-300 overflow-hidden">
+                <div class="bg-slate-800 text-white px-4 py-2.5 flex justify-between items-center">
+                    <h2 class="text-sm font-bold tracking-wide uppercase flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Jadwal Admin <span id="period-label-admin" class="text-amber-300 font-mono"></span>
+                    </h2>
+                    <span class="text-[11px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">Sabtu-Senin (3 Hari Sama) | Selasa-Jumat (Rolling Harian)</span>
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full text-center border-collapse text-[11px] table-sticky">
+                        <thead>
+                            <tr class="bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
+                                <th class="p-2 border-r border-slate-300 bg-slate-200 sticky-col-1" rowspan="2">Nama Toko</th>
+                                <th class="p-2 border-r border-slate-300 bg-slate-200 sticky-col-2" rowspan="2">Nama Admin</th>
+                                <th class="p-1 border-b border-slate-300 bg-slate-200" id="header-colspan-admin" colspan="31">Hari Tanggal</th>
+                                <th class="p-2 border-l border-slate-300 bg-slate-200 min-w-[60px]" rowspan="2">Jumlah Masuk</th>
+                                <th class="p-2 border-l border-slate-300 bg-slate-200 min-w-[55px]" rowspan="2">Admin 1</th>
+                                <th class="p-2 border-l border-slate-300 bg-slate-200 min-w-[55px]" rowspan="2">Admin 2</th>
+                            </tr>
+                            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-300" id="admin-date-header-row">
+                                <!-- Dynamic date headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="admin-schedule-tbody" class="divide-y divide-slate-200">
+                            <!-- Dynamic admin rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabel Jadwal Editor -->
+            <div class="bg-white rounded-xl shadow border border-slate-300 overflow-hidden">
+                <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center">
+                    <h2 class="text-sm font-bold tracking-wide uppercase flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Jadwal Editor <span id="period-label-editor" class="text-indigo-300 font-mono"></span>
+                    </h2>
+                    <span class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">Format: 1 = Masuk | 0 = Libur Minggu</span>
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full text-center border-collapse text-[11px] table-sticky">
+                        <thead>
+                            <tr class="bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
+                                <th class="p-2 border-r border-slate-300 bg-slate-200 sticky-col-1" rowspan="2">Nama Toko</th>
+                                <th class="p-2 border-r border-slate-300 bg-slate-200 sticky-col-2" rowspan="2">Editor</th>
+                                <th class="p-1 border-b border-slate-300 bg-slate-200" id="header-colspan-editor" colspan="31">Hari Tanggal</th>
+                                <th class="p-2 border-l border-slate-300 bg-slate-200 min-w-[60px]" rowspan="2">Jumlah Masuk</th>
+                            </tr>
+                            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-300" id="editor-date-header-row">
+                                <!-- Dynamic editor headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="editor-schedule-tbody" class="divide-y divide-slate-200">
+                            <!-- Dynamic editor rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-permit" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-xl shadow border border-slate-200 space-y-4">
+                    <h2 class="text-sm font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Form Pengajuan Cuti & Backup
+                    </h2>
+                    <form onsubmit="handlePermitSubmit(event)" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Nama Toko</label>
+                            <select id="permit-store" onchange="updateAdminDropdown()" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <option value="AD">AD</option>
+                                <option value="CC">CC</option>
+                                <option value="WI">WI</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Karyawan yang Cuti (Admin / Editor)</label>
+                            <select id="permit-admin" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <!-- Dynamic -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Tanggal Cuti</label>
+                            <select id="permit-date" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <!-- Dynamic -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Karyawan Pengganti (Backup)</label>
+                            <select id="permit-backup" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <!-- Dynamic -->
+                            </select>
+                            <p class="text-[10px] text-amber-600 mt-1">*Bisa memilih rekan Admin maupun Editor sebagai pengganti (backup).</p>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-700 hover:bg-indigo-800 text-white font-bold p-2.5 rounded-lg transition shadow flex items-center justify-center gap-2">
+                            <span>Simpan & Permanenkan Cuti</span>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow border border-slate-200 space-y-4">
+                    <h2 class="text-sm font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                        Daftar Perizinan Cuti Aktif
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 border-b">
+                                    <th class="p-2.5">Toko</th>
+                                    <th class="p-2.5">Karyawan Cuti</th>
+                                    <th class="p-2.5">Tanggal</th>
+                                    <th class="p-2.5">Karyawan Backup</th>
+                                    <th class="p-2.5 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="permit-tbody" class="divide-y divide-slate-200">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-matrix" class="space-y-6 hidden">
+            <div class="bg-white p-5 rounded-xl shadow border border-slate-200 space-y-4">
+                <h2 class="text-sm font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Matriks Rekapitulasi Cuti & Tugas Backup
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 border-b">
+                                <th class="p-2.5">Toko</th>
+                                <th class="p-2.5">Nama Karyawan</th>
+                                <th class="p-2.5 text-center">Jumlah Cuti</th>
+                                <th class="p-2.5 text-center">Jumlah Tugas Backup</th>
+                                <th class="p-2.5">Rincian Tanggal Cuti</th>
+                                <th class="p-2.5">Rincian Tanggal Backup</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-tbody" class="divide-y divide-slate-200">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-gas" class="space-y-6 hidden">
+            <div class="bg-amber-50 border border-amber-200 p-5 rounded-xl text-slate-800 space-y-3">
+                <h2 class="text-sm font-bold text-amber-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Cara Menempelkan Kode ke Google Apps Script (GAS) & Menghubungkan API
+                </h2>
+                <ol class="list-decimal list-inside text-xs space-y-2 text-slate-700 leading-relaxed font-medium">
+                    <li>Buka <b>Google Spreadsheet</b> Anda &gt; Klik menu <b>Ekstensi (Extensions)</b> &gt; pilih <b>Apps Script</b>.</li>
+                    <li>Hapus semua kode bawaan lalu tempelkan (Paste) kode Apps Script murni di bawah ini.</li>
+                    <li>Jalankan fungsi <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900">setupSpreadsheet()</code> sekali untuk otomatis membuat Sheet dan mengisi data anggota awal.</li>
+                    <li>Klik tombol <b>Deploy</b> &gt; <b>New deployment</b> &gt; Pilih jenis <b>Web App</b> (*Execute as: Me*, *Who has access: Anyone*).</li>
+                    <li>Salin <b>Web App URL</b> (contoh: <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900">https://script.google.com/macros/s/.../exec</code>).</li>
+                    <li>Klik tombol <b>Koneksi GAS API</b> di pojok kanan atas aplikasi ini, lalu tempelkan URL tersebut!</li>
+                </ol>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow border border-slate-200 space-y-4">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900">Google Apps Script Pure API Code (Code.gs)</h2>
+                        <p class="text-xs text-slate-500">Salin kode ini ke <code class="bg-slate-100 text-indigo-600 px-1 py-0.5 rounded font-mono">Code.gs</code> di Google Apps Script Anda.</p>
+                    </div>
+                    <button onclick="copyGasCode()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow">
+                        Salin Kode GAS API
+                    </button>
+                </div>
+                <pre class="bg-slate-900 text-slate-200 p-4 rounded-xl text-xs font-mono overflow-x-auto max-h-[450px]" id="gas-code-box">
+// ==========================================
+// PURE GOOGLE APPS SCRIPT JSON API BACKEND
+// ==========================================
+
+function doGet(e) {
+  var output = { status: "success", members: [], cutiList: [] };
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Sheet 1: Data Anggota
+    var sheetAnggota = ss.getSheetByName("Data Anggota");
+    if (sheetAnggota && sheetAnggota.getLastRow() > 1) {
+      var rawMembers = sheetAnggota.getRange(2, 1, sheetAnggota.getLastRow() - 1, 3).getValues();
+      output.members = rawMembers.map(function(r) {
+        return { store: String(r[0]), name: String(r[1]), role: String(r[2]) };
+      });
+    }
+    
+    // Sheet 2: Data Cuti
+    var sheetCuti = ss.getSheetByName("Data Cuti");
+    if (sheetCuti && sheetCuti.getLastRow() > 1) {
+      var rawCuti = sheetCuti.getRange(2, 1, sheetCuti.getLastRow() - 1, 7).getValues();
+      output.cutiList = rawCuti.map(function(r) {
+        return {
+          id: String(r[0]),
+          store: String(r[1]),
+          admin: String(r[2]),
+          date: Number(r[3]),
+          backup: String(r[4]),
+          month: Number(r[5]),
+          year: Number(r[6])
+        };
+      });
+    }
+  } catch(err) {
+    output.status = "error";
+    output.message = err.toString();
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify(output))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var output = { status: "error", message: "Invalid action" };
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    if (data.action === "saveCuti") {
+      var sheetCuti = ss.getSheetByName("Data Cuti");
+      if (!sheetCuti) {
+        sheetCuti = ss.insertSheet("Data Cuti");
+        sheetCuti.appendRow(["ID", "Toko", "Admin Cuti", "Tanggal Cuti", "Admin Backup", "Bulan", "Tahun"]);
+      }
+      var id = "CUTI_" + new Date().getTime();
+      sheetCuti.appendRow([id, data.store, data.admin, Number(data.date), data.backup, Number(data.month), Number(data.year)]);
+      output = { status: "success", message: "Cuti berhasil disimpan", id: id };
+    } 
+    else if (data.action === "deleteCuti") {
+      var sheetCuti = ss.getSheetByName("Data Cuti");
+      if (sheetCuti && sheetCuti.getLastRow() > 1) {
+        var rangeData = sheetCuti.getRange(2, 1, sheetCuti.getLastRow() - 1, 7).getValues();
+        for (var i = 0; i < rangeData.length; i++) {
+          if (String(rangeData[i][0]) === String(data.id)) {
+            sheetCuti.deleteRow(i + 2);
+            break;
+          }
+        }
+      }
+      output = { status: "success", message: "Cuti berhasil dihapus" };
+    }
+  } catch(err) {
+    output = { status: "error", message: err.toString() };
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify(output))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function setupSpreadsheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  var sheetAnggota = ss.getSheetByName("Data Anggota");
+  if (!sheetAnggota) {
+    sheetAnggota = ss.insertSheet("Data Anggota");
+    sheetAnggota.appendRow(["Toko", "Nama Anggota", "Role"]);
+    var memberData = [
+      ["AD", "Fir", "Admin"],
+      ["AD", "Ist", "Admin"],
+      ["CC", "Sil", "Admin"],
+      ["CC", "Dev", "Admin"],
+      ["CC", "Fah", "Admin"],
+      ["WI", "Int", "Admin"],
+      ["WI", "Nay", "Admin"],
+      ["AD", "Ain", "Editor"],
+      ["CC", "Nov", "Editor"],
+      ["WI", "Bud", "Editor"]
+    ];
+    sheetAnggota.getRange(2, 1, memberData.length, 3).setValues(memberData);
+  }
+  
+  var sheetCuti = ss.getSheetByName("Data Cuti");
+  if (!sheetCuti) {
+    sheetCuti = ss.insertSheet("Data Cuti");
+    sheetCuti.appendRow(["ID", "Toko", "Admin Cuti", "Tanggal Cuti", "Admin Backup", "Bulan", "Tahun"]);
+  }
+}
+                </pre>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="gas-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4 border border-slate-200">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-sm font-bold text-slate-900">Hubungkan ke Google Apps Script API</h3>
+                <button onclick="closeGasModal()" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <p class="text-slate-600">Tempelkan URL Web App Google Apps Script Anda di bawah ini:</p>
+                <input type="text" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full p-2.5 border border-slate-300 rounded-lg font-mono text-[11px] focus:ring-2 focus:ring-indigo-500">
+                <p class="text-[11px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                    <b>Catatan Deploy Web App:</b> Pastikan pengaturan akses di Google Apps Script adalah:<br>
+                    • <i>Execute as:</i> Me<br>
+                    • <i>Who has access:</i> Anyone
+                </p>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t">
+                <button onclick="closeGasModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition">Batal</button>
+                <button onclick="saveAndConnectGas()" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded-lg transition shadow">Simpan & Hubungkan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMonth = 10; // November (0-indexed)
+        let currentYear = 2026;
+        let daysInCurrentMonth = 30;
+        let redDates = []; 
+
+        let adminRawData = [];
+        let editorRawData = [];
+        let permits = [];
+
+        let gasWebAppUrl = localStorage.getItem('gas_webapp_url') || "";
+
+        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        function openGasModal() {
+            document.getElementById('gas-url-input').value = gasWebAppUrl;
+            document.getElementById('gas-modal').classList.remove('hidden');
+        }
+
+        function closeGasModal() {
+            document.getElementById('gas-modal').classList.add('hidden');
+        }
+
+        function saveAndConnectGas() {
+            const url = document.getElementById('gas-url-input').value.trim();
+            if (!url) {
+                alert("URL Web App tidak boleh kosong!");
+                return;
             }
-          });
-
-          tbodyAdmin += `<tr class="hover:bg-slate-50 transition-colors">`;
-          tbodyAdmin += `<td class="px-2 py-2 font-bold text-center text-slate-800 bg-slate-100 border-r border-slate-200 sticky-col-toko left-0">${admin.toko}</td>`;
-          tbodyAdmin += `<td class="px-3 py-2 font-semibold text-slate-900 bg-white border-r border-slate-200 sticky-col-nama left-[70px]">${admin.nama}</td>`;
-
-          for (let day = 0; day < daysCount; day++) {
-            const dayNum = day + 1;
-            const isMinggu = sundays.includes(dayNum);
-            const val = matrix[day];
-
-            let colorClass = 'cell-neutral';
-            let labelText = val;
-
-            if (val === 'Cuti') { colorClass = 'cell-cuti'; labelText = 'Cuti'; }
-            else if (val === 'Backup') { colorClass = 'cell-backup'; labelText = 'Bkp'; }
-            else if (isMinggu && val !== 'Cuti' && val !== 'Backup') { colorClass = 'cell-wfh'; }
-
-            tbodyAdmin += `<td class="px-0.5 py-1.5 text-center select-none border-r border-slate-200 ${colorClass}">${labelText}</td>`;
-          }
-
-          tbodyAdmin += `<td class="px-2 py-2 text-center font-bold text-slate-900 bg-slate-100 border-r border-slate-200">${jmlMasuk}</td>`;
-          tbodyAdmin += `<td class="px-2 py-2 text-center font-semibold text-sky-700 bg-sky-50 border-r border-slate-200">${countShift1}</td>`;
-          tbodyAdmin += `<td class="px-2 py-2 text-center font-semibold text-emerald-700 bg-emerald-50">${countShift2}</td>`;
-          tbodyAdmin += `</tr>`;
-        });
-        document.getElementById('tbody-jadwal-admin').innerHTML = tbodyAdmin;
-      }
-
-      if (editorList.length === 0) {
-        document.getElementById('tbody-jadwal-editor').innerHTML = `<tr><td colspan="${daysCount + 3}" class="px-4 py-8 text-center text-slate-400 italic">Belum ada data anggota editor.</td></tr>`;
-      } else {
-        let tbodyEditor = '';
-        editorList.forEach((editor) => {
-          const matrix = jadwalMatrix[editor.id] || Array(daysCount).fill(1);
-          let jmlMasuk = 0;
-          matrix.forEach((val, dayIndex) => {
-            const dayNum = dayIndex + 1;
-            const isMinggu = sundays.includes(dayNum);
-            if (!isMinggu && val !== 'Cuti') { jmlMasuk++; }
-          });
-
-          tbodyEditor += `<tr class="hover:bg-slate-50 transition-colors">`;
-          tbodyEditor += `<td class="px-2 py-2 font-bold text-center text-slate-800 bg-slate-100 border-r border-slate-200 sticky-col-toko left-0">${editor.toko}</td>`;
-          tbodyEditor += `<td class="px-3 py-2 font-semibold text-slate-900 bg-white border-r border-slate-200 sticky-col-nama left-[70px]">${editor.nama}</td>`;
-
-          for (let day = 0; day < daysCount; day++) {
-            const dayNum = day + 1;
-            const isMinggu = sundays.includes(dayNum);
-            const val = matrix[day];
-
-            let colorClass = 'cell-neutral';
-            let labelText = val;
-
-            if (val === 'Cuti') { colorClass = 'cell-cuti'; labelText = 'Cuti'; }
-            else if (val === 'Backup') { colorClass = 'cell-backup'; labelText = 'Bkp'; }
-            else if (isMinggu) { colorClass = 'cell-wfh'; }
-
-            tbodyEditor += `<td class="px-0.5 py-1.5 text-center select-none border-r border-slate-200 ${colorClass}">${labelText}</td>`;
-          }
-
-          tbodyEditor += `<td class="px-2 py-2 text-center font-bold text-indigo-900 bg-indigo-50">${jmlMasuk}</td>`;
-          tbodyEditor += `</tr>`;
-        });
-        document.getElementById('tbody-jadwal-editor').innerHTML = tbodyEditor;
-      }
-    }
-
-    function renderMasterAnggota() {
-      const tbody = document.getElementById('tbody-master-anggota');
-      if (anggotaList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">Data kosong. Silakan tambahkan anggota baru.</td></tr>`;
-        document.getElementById('badge-total-anggota').innerText = '0';
-        return;
-      }
-
-      let html = '';
-      anggotaList.forEach(item => {
-        let badgePeran = item.peran === 'Admin' ? 'bg-sky-100 text-sky-800' : 'bg-indigo-100 text-indigo-800';
-        let badgeStatus = item.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
-
-        html += `
-          <tr class="hover:bg-slate-50 transition-colors">
-            <td class="px-4 py-3 font-mono text-xs font-semibold text-slate-500">${item.id}</td>
-            <td class="px-4 py-3 font-bold text-slate-800">${item.nama}</td>
-            <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-semibold rounded-full ${badgePeran}">${item.peran}</span></td>
-            <td class="px-4 py-3 font-medium text-slate-700">Toko ${item.toko}</td>
-            <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-semibold rounded-full ${badgeStatus}">${item.status}</span></td>
-            <td class="px-4 py-3 text-center space-x-2">
-              <button onclick="editAnggota('${item.id}')" class="text-sky-600 hover:text-sky-800 p-1"><i class="fa-solid fa-pen-to-square"></i></button>
-              <button onclick="deleteAnggota('${item.id}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash-can"></i></button>
-            </td>
-          </tr>
-        `;
-      });
-      tbody.innerHTML = html;
-      document.getElementById('badge-total-anggota').innerText = anggotaList.length;
-    }
-
-    function openModalAnggota() {
-      document.getElementById('form-anggota').reset();
-      document.getElementById('input-anggota-id-edit').value = '';
-      document.getElementById('modal-anggota-title').innerText = 'Tambah Anggota Baru';
-      document.getElementById('modal-anggota').classList.remove('hidden');
-    }
-
-    function closeModalAnggota() {
-      document.getElementById('modal-anggota').classList.add('hidden');
-    }
-
-    function handleSaveAnggota(e) {
-      e.preventDefault();
-      const idEdit = document.getElementById('input-anggota-id-edit').value;
-      const nama = document.getElementById('input-nama').value;
-      const peran = document.getElementById('select-peran').value;
-      const toko = document.getElementById('select-toko').value;
-      const status = document.getElementById('select-status').value;
-
-      if (idEdit) {
-        const idx = anggotaList.findIndex(a => a.id === idEdit);
-        if (idx !== -1) {
-          anggotaList[idx] = { id: idEdit, nama, peran, toko, status };
+            gasWebAppUrl = url;
+            localStorage.setItem('gas_webapp_url', url);
+            closeGasModal();
+            fetchDataFromGas();
         }
-      } else {
-        const newId = (peran === 'Admin' ? 'ADM-' : 'EDT-') + String(anggotaList.length + 1).padStart(2, '0');
-        anggotaList.push({ id: newId, nama, peran, toko, status });
-        for (let key in monthlySchedules) {
-          let daysCount = monthlySchedules[key][Object.keys(monthlySchedules[key])[0]].length;
-          monthlySchedules[key][newId] = Array(daysCount).fill(1);
+
+        async function fetchDataFromGas() {
+            if (!gasWebAppUrl) {
+                document.getElementById('sync-status').innerText = "Belum Terhubung ke Spreadsheet";
+                document.getElementById('sync-indicator').className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-400";
+                
+                adminRawData = [];
+                editorRawData = [];
+                permits = [];
+                renderAdminTable();
+                renderEditorTable();
+                updateAdminDropdown();
+                return;
+            }
+
+            document.getElementById('sync-status').innerText = "Menyinkronkan data dari Spreadsheet...";
+            document.getElementById('sync-indicator').className = "inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse";
+
+            try {
+                const response = await fetch(gasWebAppUrl, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.status === "success" && result.members && result.members.length > 0) {
+                    adminRawData = (result.members || []).filter(m => m.role.toLowerCase() === "admin");
+                    editorRawData = (result.members || []).filter(m => m.role.toLowerCase() === "editor");
+                    permits = result.cutiList || [];
+
+                    document.getElementById('sync-status').innerText = "Terhubung (Sinkron Sukses)";
+                    document.getElementById('sync-indicator').className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-400";
+                } else {
+                    adminRawData = [];
+                    editorRawData = [];
+                    permits = result.cutiList || [];
+                    document.getElementById('sync-status').innerText = "Terhubung (Sheet Anggota Masih Kosong / Jalankan setupSpreadsheet)";
+                    document.getElementById('sync-indicator').className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-400";
+                }
+
+                renderAdminTable();
+                renderEditorTable();
+                updateAdminDropdown();
+            } catch (err) {
+                console.error("GAS Fetch Error:", err);
+                document.getElementById('sync-status').innerText = "Gagal Terhubung (Cek URL Web App / CORS)";
+                document.getElementById('sync-indicator').className = "inline-block w-2.5 h-2.5 rounded-full bg-red-400";
+                
+                adminRawData = [];
+                editorRawData = [];
+                permits = [];
+                renderAdminTable();
+                renderEditorTable();
+                updateAdminDropdown();
+            }
         }
-      }
 
-      closeModalAnggota();
-      renderAll();
-    }
+        function calculateDaysAndSundays() {
+            daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            redDates = [];
+            for (let d = 1; d <= daysInCurrentMonth; d++) {
+                let dayOfWeek = new Date(currentYear, currentMonth, d).getDay();
+                if (dayOfWeek === 0) { 
+                    redDates.push(d);
+                }
+            }
 
-    function editAnggota(id) {
-      const item = anggotaList.find(a => a.id === id);
-      if (!item) return;
+            const periodText = `(${monthNames[currentMonth]} ${currentYear})`;
+            document.getElementById('period-label-admin').innerText = periodText;
+            document.getElementById('period-label-editor').innerText = periodText;
 
-      document.getElementById('input-anggota-id-edit').value = item.id;
-      document.getElementById('input-nama').value = item.nama;
-      document.getElementById('select-peran').value = item.peran;
-      document.getElementById('select-toko').value = item.toko;
-      document.getElementById('select-status').value = item.status;
+            document.getElementById('header-colspan-admin').colSpan = daysInCurrentMonth;
+            document.getElementById('header-colspan-editor').colSpan = daysInCurrentMonth;
 
-      document.getElementById('modal-anggota-title').innerText = 'Edit Data Anggota';
-      document.getElementById('modal-anggota').classList.remove('hidden');
-    }
-
-    function deleteAnggota(id) {
-      if (confirm('Apakah Anda yakin ingin menghapus data anggota ini?')) {
-        anggotaList = anggotaList.filter(a => a.id !== id);
-        for (let key in monthlySchedules) {
-          delete monthlySchedules[key][id];
+            renderDateHeaders();
+            updatePermitDateDropdown();
         }
-        renderAll();
-      }
-    }
 
-    function renderCutiTable() {
-      const tbody = document.getElementById('tbody-data-cuti');
-      if (cutiList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">Belum ada catatan cuti.</td></tr>`;
-      } else {
-        let html = '';
-        cutiList.forEach(item => {
-          html += `
-            <tr class="hover:bg-slate-50 transition-colors">
-              <td class="px-4 py-3 font-mono text-xs text-slate-500">${item.id}</td>
-              <td class="px-4 py-3 font-bold text-rose-700">${item.namaCuti}</td>
-              <td class="px-4 py-3 font-bold text-amber-800 bg-amber-50">${item.namaBackup} (Kuning)</td>
-              <td class="px-4 py-3 font-semibold text-slate-700">${item.tanggal}</td>
-              <td class="px-4 py-3 text-slate-600 text-xs">${item.keterangan || '-'}</td>
-              <td class="px-4 py-3 text-center">
-                <button onclick="deleteCuti('${item.id}')" class="text-rose-600 hover:text-rose-800 p-1"><i class="fa-solid fa-trash-can"></i></button>
-              </td>
-            </tr>
-          `;
-        });
-        tbody.innerHTML = html;
-      }
+        function renderDateHeaders() {
+            const adminRow = document.getElementById('admin-date-header-row');
+            const editorRow = document.getElementById('editor-date-header-row');
+            
+            let html = '';
+            for (let i = 1; i <= daysInCurrentMonth; i++) {
+                const isRed = redDates.includes(i);
+                html += `<th class="p-1.5 border-r border-slate-300 w-7 min-w-[28px] ${isRed ? 'text-red-600 bg-red-100 font-black' : ''}">${i}</th>`;
+            }
 
-      let selectCutiHtml = '';
-      let selectBackupHtml = '';
-      if (anggotaList.length === 0) {
-        selectCutiHtml = `<option value="">-- Tambahkan Anggota Terlebih Dahulu --</option>`;
-        selectBackupHtml = `<option value="">-- Tambahkan Anggota Terlebih Dahulu --</option>`;
-      } else {
-        anggotaList.forEach(a => {
-          selectCutiHtml += `<option value="${a.id}">${a.nama} (${a.peran} - Toko ${a.toko})</option>`;
-          selectBackupHtml += `<option value="${a.id}">${a.nama} (${a.peran} - Toko ${a.toko})</option>`;
-        });
-      }
-      document.getElementById('select-cuti-anggota').innerHTML = selectCutiHtml;
-      document.getElementById('select-backup-anggota').innerHTML = selectBackupHtml;
-    }
-
-    function openModalCuti() {
-      if (anggotaList.length === 0) {
-        alert('Silakan tambahkan anggota terlebih dahulu sebelum mencatat cuti.');
-        switchTab('anggota');
-        return;
-      }
-      document.getElementById('form-cuti').reset();
-      document.getElementById('modal-cuti').classList.remove('hidden');
-    }
-
-    function closeModalCuti() {
-      document.getElementById('modal-cuti').classList.add('hidden');
-    }
-
-    function handleSaveCuti(e) {
-      e.preventDefault();
-      const idAnggotaCuti = document.getElementById('select-cuti-anggota').value;
-      const idAnggotaBackup = document.getElementById('select-backup-anggota').value;
-      const tanggal = document.getElementById('input-cuti-tanggal').value;
-      const keterangan = document.getElementById('input-cuti-alasan').value;
-
-      const anggotaCuti = anggotaList.find(a => a.id === idAnggotaCuti);
-      const anggotaBackup = anggotaList.find(a => a.id === idAnggotaBackup);
-
-      if (!anggotaCuti || !anggotaBackup) return;
-
-      const newId = 'CUTI-' + String(cutiList.length + 1).padStart(3, '0');
-      cutiList.push({
-        id: newId,
-        idCuti: anggotaCuti.id,
-        namaCuti: anggotaCuti.nama,
-        idBackup: anggotaBackup.id,
-        namaBackup: anggotaBackup.nama,
-        tanggal,
-        keterangan
-      });
-
-      if (tanggal) {
-        const parts = tanggal.split('-');
-        const year = parts[0];
-        const month = parts[1];
-        const dayNumber = parseInt(parts[2], 10);
-        const periodKey = `${month}-${year}`;
-
-        const select = document.getElementById('select-bulan');
-        if (!select.querySelector(`option[value="${periodKey}"]`)) {
-          let opt = document.createElement('option');
-          opt.value = periodKey;
-          opt.innerText = `${namaBulanIndo[parseInt(month, 10) - 1]} ${year}`;
-          select.appendChild(opt);
+            adminRow.innerHTML = html;
+            editorRow.innerHTML = html;
         }
-        select.value = periodKey;
-        currentSelectedMonthKey = periodKey;
 
-        const jadwalMatrix = getOrCreateMatrixForCurrentPeriod();
-        const daysCount = getDaysInSelectedPeriod();
-
-        if (dayNumber >= 1 && dayNumber <= daysCount) {
-          if (jadwalMatrix[anggotaCuti.id]) {
-            jadwalMatrix[anggotaCuti.id][dayNumber - 1] = 'Cuti';
-          }
-          if (jadwalMatrix[anggotaBackup.id]) {
-            jadwalMatrix[anggotaBackup.id][dayNumber - 1] = 'Backup';
-          }
+        function updatePermitDateDropdown() {
+            const dateSelect = document.getElementById('permit-date');
+            if (!dateSelect) return;
+            dateSelect.innerHTML = '';
+            for (let i = 1; i <= daysInCurrentMonth; i++) {
+                dateSelect.innerHTML += `<option value="${i}">Tanggal ${i}</option>`;
+            }
         }
-      }
 
-      closeModalCuti();
-      renderAll();
-    }
+        function changePeriod() {
+            currentMonth = parseInt(document.getElementById('select-month').value);
+            currentYear = parseInt(document.getElementById('select-year').value);
+            calculateDaysAndSundays();
+            renderAdminTable();
+            renderEditorTable();
+            if (!document.getElementById('section-matrix').classList.contains('hidden')) {
+                calculateMatrix();
+            }
+        }
 
-    function deleteCuti(id) {
-      if (confirm('Hapus data cuti & backup ini?')) {
-        cutiList = cutiList.filter(c => c.id !== id);
-        renderAll();
-      }
-    }
+        function switchTab(tabId) {
+            document.querySelectorAll('section[id^="section-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-700', 'text-white', 'shadow');
+                btn.classList.add('bg-slate-100', 'text-slate-700');
+            });
+            document.getElementById(`section-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('bg-slate-100', 'text-slate-700');
+            activeBtn.classList.add('bg-indigo-700', 'text-white', 'shadow');
 
-    function updateMetrics() {
-      const adminCount = anggotaList.filter(a => a.peran === 'Admin').length;
-      const editorCount = anggotaList.filter(a => a.peran === 'Editor').length;
-      document.getElementById('stat-admin-count').innerText = adminCount;
-      document.getElementById('stat-editor-count').innerText = editorCount;
-      document.getElementById('stat-cuti-count').innerText = `${cutiList.length} Permohonan`;
-    }
-  </script>
+            if (tabId === 'matrix') calculateMatrix();
+            if (tabId === 'permit') updateAdminDropdown();
+        }
+
+        // Algoritma Penjadwalan Admin Sesuai Permintaan
+        function getGeneratedAdminValue(store, adminName, dateNum) {
+            const dateObj = new Date(currentYear, currentMonth, dateNum);
+            const dayOfWeek = dateObj.getDay(); // 0 = Minggu, 1 = Senin, 2 = Selasa, 3 = Rabu, 4 = Kamis, 5 = Jumat, 6 = Sabtu
+
+            if (store === "AD" || store === "WI") {
+                const isFirstPerson = (adminName.toLowerCase().startsWith('f') || (adminName.toLowerCase().startsWith('i') && adminName !== "Ist") || adminName.toLowerCase().startsWith('n'));
+
+                // Cek apakah masuk blok akhir pekan (Sabtu=6, Minggu=0, Senin=1)
+                if (dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
+                    let mondayDate = new Date(dateObj);
+                    if (dayOfWeek === 6) mondayDate.setDate(dateObj.getDate() + 2);
+                    if (dayOfWeek === 0) mondayDate.setDate(dateObj.getDate() + 1);
+
+                    let weekendBlockIndex = Math.floor(mondayDate.getTime() / (7 * 24 * 60 * 60 * 1000));
+                    
+                    if (isFirstPerson) {
+                        return (weekendBlockIndex % 2 === 0) ? 1 : 2;
+                    } else {
+                        return (weekendBlockIndex % 2 === 0) ? 2 : 1;
+                    }
+                } else {
+                    // Hari Selasa s.d Jumat (Rolling Harian)
+                    // Cari referensi selasa pertama di bulan ini
+                    let startOfMonth = new Date(currentYear, currentMonth, 1);
+                    let firstTue = new Date(startOfMonth);
+                    let day1OfWeek = startOfMonth.getDay();
+                    let offsetToTue = (2 - day1OfWeek + 7) % 7;
+                    firstTue.setDate(1 + offsetToTue);
+
+                    // Hitung selisih hari dari Selasa pertama
+                    let diffDays = Math.floor((dateObj - firstTue) / (24 * 60 * 60 * 1000));
+                    if (diffDays < 0) {
+                        // Untuk hari sebelum Selasa pertama di bulan tersebut
+                        return isFirstPerson ? 1 : 2;
+                    }
+
+                    // Siklus 4 hari kerja (Selasa, Rabu, Kamis, Jumat)
+                    // Selasa=0, Rabu=1, Kamis=2, Jumat=3
+                    let workDayIndex = 0;
+                    if (dayOfWeek === 2) workDayIndex = 0;
+                    else if (dayOfWeek === 3) workDayIndex = 1;
+                    else if (dayOfWeek === 4) workDayIndex = 2;
+                    else if (dayOfWeek === 5) workDayIndex = 3;
+
+                    let weekCycle = Math.floor(diffDays / 7);
+                    let dailySeq = (weekCycle + workDayIndex) % 2;
+
+                    if (isFirstPerson) {
+                        return dailySeq === 0 ? 1 : 2;
+                    } else {
+                        return dailySeq === 0 ? 2 : 1;
+                    }
+                }
+            } 
+            else if (store === "CC") {
+                // Toko CC (3 Admin: Sil, Dev, Fah)
+                if (dayOfWeek === 6 || dayOfWeek === 0 || dayOfWeek === 1) {
+                    let mondayDate = new Date(dateObj);
+                    if (dayOfWeek === 6) mondayDate.setDate(dateObj.getDate() + 2);
+                    if (dayOfWeek === 0) mondayDate.setDate(dateObj.getDate() + 1);
+
+                    let weekendIndex = Math.floor(mondayDate.getTime() / (7 * 24 * 60 * 60 * 1000)) % 3;
+                    
+                    if (weekendIndex === 0) {
+                        return adminName === "Sil" ? 1 : (adminName === "Dev" ? 2 : 0);
+                    } else if (weekendIndex === 1) {
+                        return adminName === "Sil" ? 2 : (adminName === "Dev" ? 0 : 1);
+                    } else {
+                        return adminName === "Sil" ? 0 : (adminName === "Dev" ? 1 : 2);
+                    }
+                } else {
+                    let startOfMonth = new Date(currentYear, currentMonth, 1);
+                    let firstTue = new Date(startOfMonth);
+                    let day1OfWeek = startOfMonth.getDay();
+                    let offsetToTue = (2 - day1OfWeek + 7) % 7;
+                    firstTue.setDate(1 + offsetToTue);
+
+                    let diffDays = Math.floor((dateObj - firstTue) / (24 * 60 * 60 * 1000));
+                    if (diffDays < 0) {
+                        return adminName === "Sil" ? 1 : (adminName === "Dev" ? 2 : 0);
+                    }
+
+                    let workDayIndex = (dayOfWeek === 2 ? 0 : dayOfWeek === 3 ? 1 : dayOfWeek === 4 ? 2 : 3);
+                    let weekCycle = Math.floor(diffDays / 7);
+                    let rotCC = (weekCycle + workDayIndex) % 3;
+
+                    if (adminName === "Sil") return rotCC === 0 ? 1 : (rotCC === 1 ? 2 : 0);
+                    if (adminName === "Dev") return rotCC === 0 ? 2 : (rotCC === 1 ? 0 : 1);
+                    if (adminName === "Fah") return rotCC === 0 ? 0 : (rotCC === 1 ? 1 : 2);
+                }
+            }
+            return 1;
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-schedule-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (adminRawData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="35" class="p-6 text-center text-slate-400">Belum ada data anggota Admin dari Spreadsheet. Silakan hubungkan GAS API dan jalankan fungsi <b>setupSpreadsheet()</b> di Google Apps Script Anda.</td></tr>`;
+                return;
+            }
+
+            let lastStore = '';
+
+            adminRawData.forEach((row) => {
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-200";
+
+                let storeCell = '';
+                if (row.store !== lastStore) {
+                    let rowSpan = adminRawData.filter(r => r.store === row.store).length;
+                    storeCell = `<td class="p-2 font-black border-r border-slate-300 bg-white sticky-col-1" rowspan="${rowSpan}">${row.store}</td>`;
+                    lastStore = row.store;
+                }
+
+                let html = storeCell;
+                html += `<td class="p-2 font-semibold border-r border-slate-300 bg-white sticky-col-2">${row.name}</td>`;
+
+                let jmlMasuk = 0;
+                let countA1 = 0;
+                let countA2 = 0;
+
+                for (let d = 0; d < daysInCurrentMonth; d++) {
+                    const dateNum = d + 1;
+                    const isRedDate = redDates.includes(dateNum);
+                    let val = getGeneratedAdminValue(row.store, row.name, dateNum);
+
+                    let cellClass = "";
+                    let displayVal = val;
+
+                    const isCuti = permits.find(p => p.admin === row.name && p.date === dateNum && p.month === currentMonth && p.year === currentYear);
+                    const isBackup = permits.find(p => p.backup === row.name && p.date === dateNum && p.month === currentMonth && p.year === currentYear);
+
+                    if (isCuti) {
+                        cellClass = "cell-cuti";
+                        displayVal = "Cuti";
+                    } else if (isBackup) {
+                        cellClass = "cell-backup";
+                        displayVal = val !== 0 ? `${val} [B]` : "Backup";
+                        if (!isRedDate) {
+                            jmlMasuk++;
+                            if (val === 1) countA1++;
+                            else if (val === 2) countA2++;
+                        }
+                    } else {
+                        if (isRedDate) {
+                            cellClass = "text-red-600 font-bold bg-red-50";
+                            if (val === 1) countA1++;
+                            else if (val === 2) countA2++;
+                        } else {
+                            // Sesuai permintaan: Nilai 0 di hari efektif tanpa cuti dihitung masuk
+                            jmlMasuk++;
+                            if (val === 1 || val === "1") {
+                                countA1++;
+                                cellClass = "text-slate-800 font-semibold";
+                            } else if (val === 2 || val === "2") {
+                                countA2++;
+                                cellClass = "text-slate-800 font-semibold";
+                            } else if (val === 0 || val === "0") {
+                                cellClass = "text-emerald-700 font-bold bg-emerald-50/50";
+                            }
+                        }
+                    }
+
+                    html += `<td class="p-1 border-r border-slate-200 text-center ${cellClass}">${displayVal}</td>`;
+                }
+
+                html += `<td class="p-2 font-bold border-l border-slate-300 bg-slate-50">${jmlMasuk}</td>`;
+                html += `<td class="p-2 font-bold border-l border-slate-300 text-indigo-700 bg-slate-50">${countA1}</td>`;
+                html += `<td class="p-2 font-bold border-l border-slate-300 text-emerald-700 bg-slate-50">${countA2}</td>`;
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderEditorTable() {
+            const tbody = document.getElementById('editor-schedule-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (editorRawData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="35" class="p-6 text-center text-slate-400">Belum ada data anggota Editor dari Spreadsheet.</td></tr>`;
+                return;
+            }
+
+            editorRawData.forEach(row => {
+                let tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 border-b border-slate-200";
+
+                let html = `<td class="p-2 font-black border-r border-slate-300 bg-white sticky-col-1">${row.store}</td>`;
+                html += `<td class="p-2 font-semibold border-r border-slate-300 bg-white sticky-col-2">${row.name}</td>`;
+
+                let jmlMasuk = 0;
+
+                for (let d = 0; d < daysInCurrentMonth; d++) {
+                    const dateNum = d + 1;
+                    const isRedDate = redDates.includes(dateNum);
+                    let val = isRedDate ? 0 : 1;
+
+                    let cellClass = "";
+                    let displayVal = val;
+
+                    const isCuti = permits.find(p => p.admin === row.name && p.date === dateNum && p.month === currentMonth && p.year === currentYear);
+                    const isBackup = permits.find(p => p.backup === row.name && p.date === dateNum && p.month === currentMonth && p.year === currentYear);
+
+                    if (isCuti) {
+                        cellClass = "cell-cuti";
+                        displayVal = "Cuti";
+                    } else if (isBackup) {
+                        cellClass = "cell-backup";
+                        displayVal = "1 [B]";
+                        if (!isRedDate) jmlMasuk++;
+                    } else {
+                        if (val === 1) {
+                            jmlMasuk++;
+                            cellClass = "text-slate-800 font-bold";
+                        } else {
+                            cellClass = "text-red-600 font-black bg-red-50";
+                        }
+                    }
+
+                    html += `<td class="p-1 border-r border-slate-200 text-center ${cellClass}">${displayVal}</td>`;
+                }
+
+                html += `<td class="p-2 font-bold border-l border-slate-300 bg-slate-50">${jmlMasuk}</td>`;
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateAdminDropdown() {
+            const store = document.getElementById('permit-store').value;
+            const adminSelect = document.getElementById('permit-admin');
+            const backupSelect = document.getElementById('permit-backup');
+
+            if (!adminSelect || !backupSelect) return;
+
+            adminSelect.innerHTML = '';
+            backupSelect.innerHTML = '';
+
+            let storeAdmins = adminRawData.filter(a => a.store === store);
+            let storeEditors = editorRawData.filter(e => e.store === store);
+
+            storeAdmins.forEach(a => {
+                adminSelect.innerHTML += `<option value="${a.name}">[Admin] ${a.name}</option>`;
+            });
+            storeEditors.forEach(e => {
+                adminSelect.innerHTML += `<option value="${e.name}">[Editor] ${e.name}</option>`;
+            });
+
+            adminRawData.forEach(a => {
+                backupSelect.innerHTML += `<option value="${a.name}">[${a.store} - Admin] ${a.name}</option>`;
+            });
+            editorRawData.forEach(e => {
+                backupSelect.innerHTML += `<option value="${e.name}">[${e.store} - Editor] ${e.name}</option>`;
+            });
+
+            renderPermitTable();
+        }
+
+        async function handlePermitSubmit(e) {
+            e.preventDefault();
+            
+            const store = document.getElementById('permit-store').value;
+            const admin = document.getElementById('permit-admin').value;
+            const date = parseInt(document.getElementById('permit-date').value);
+            const backup = document.getElementById('permit-backup').value;
+
+            if (admin === backup) {
+                alert("Karyawan yang cuti dan backup tidak boleh orang yang sama!");
+                return;
+            }
+
+            if (!gasWebAppUrl) {
+                alert("Silakan hubungkan URL Web App GAS terlebih dahulu untuk menyimpan cuti ke Spreadsheet.");
+                openGasModal();
+                return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.innerText = "Menyimpan ke Spreadsheet...";
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(gasWebAppUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        action: "saveCuti",
+                        store: store,
+                        admin: admin,
+                        date: date,
+                        backup: backup,
+                        month: currentMonth,
+                        year: currentYear
+                    })
+                });
+                const result = await response.json();
+                if (result.status === "success") {
+                    await fetchDataFromGas();
+                    alert("Permohonan cuti berhasil disimpan ke Google Spreadsheet!");
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Gagal menyimpan cuti ke Spreadsheet. Pastikan URL GAS benar dan telah di-deploy ulang sebagai Web App (Anyone access).");
+            } finally {
+                submitBtn.innerText = "Simpan & Permanenkan Cuti";
+                submitBtn.disabled = false;
+            }
+        }
+
+        function renderPermitTable() {
+            const tbody = document.getElementById('permit-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const activePermits = permits.filter(p => p.month === currentMonth && p.year === currentYear);
+
+            if (activePermits.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data perizinan cuti untuk bulan ini dari spreadsheet.</td></tr>`;
+                return;
+            }
+
+            activePermits.forEach(p => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold">${p.store}</td>
+                    <td class="p-2.5 font-bold text-red-600 bg-red-50">${p.admin}</td>
+                    <td class="p-2.5 font-semibold">Tanggal ${p.date} (${monthNames[p.month]})</td>
+                    <td class="p-2.5 font-bold text-amber-700 bg-amber-50">${p.backup}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="deletePermit('${p.id}')" class="text-red-600 hover:text-red-800 font-medium text-xs bg-red-100 px-2.5 py-1 rounded border border-red-200">Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function deletePermit(id) {
+            if (!gasWebAppUrl) return;
+            if (!confirm("Apakah Anda yakin ingin menghapus data cuti ini dari Spreadsheet?")) return;
+
+            try {
+                const response = await fetch(gasWebAppUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    body: JSON.stringify({ action: "deleteCuti", id: id })
+                });
+                const result = await response.json();
+                if (result.status === "success") {
+                    await fetchDataFromGas();
+                } else {
+                    alert("Gagal menghapus cuti.");
+                }
+            } catch(err) {
+                console.error(err);
+                alert("Terjadi kesalahan jaringan.");
+            }
+        }
+
+        function calculateMatrix() {
+            const tbody = document.getElementById('matrix-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const allStaff = [...adminRawData, ...editorRawData];
+
+            if (allStaff.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada data anggota. Hubungkan GAS API terlebih dahulu.</td></tr>`;
+                return;
+            }
+
+            allStaff.forEach(staff => {
+                let userPermits = permits.filter(p => p.admin === staff.name && p.month === currentMonth && p.year === currentYear);
+                let cutiCount = userPermits.length;
+                let cutiDates = userPermits.map(p => `Tgl ${p.date}`).join(', ') || '-';
+
+                let userBackups = permits.filter(p => p.backup === staff.name && p.month === currentMonth && p.year === currentYear);
+                let backupCount = userBackups.length;
+                let backupDates = userBackups.map(p => `Tgl ${p.date} (${p.store})`).join(', ') || '-';
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold">${staff.store}</td>
+                    <td class="p-2.5 font-semibold">${staff.name} <span class="text-[10px] text-slate-500 font-normal">(${staff.role})</span></td>
+                    <td class="p-2.5 text-center font-black text-red-600 bg-red-50">${cutiCount}</td>
+                    <td class="p-2.5 text-center font-black text-amber-800 bg-amber-50">${backupCount}</td>
+                    <td class="p-2.5 text-slate-700 font-medium">${cutiDates}</td>
+                    <td class="p-2.5 text-slate-700 font-medium">${backupDates}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function copyGasCode() {
+            const codeBox = document.getElementById('gas-code-box');
+            const textArea = document.createElement("textarea");
+            textArea.value = codeBox.innerText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Kode Google Apps Script API murni berhasil disalin ke clipboard!");
+            } catch (err) {
+                alert("Gagal menyalin kode.");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        window.onload = function() {
+            calculateDaysAndSundays();
+            fetchDataFromGas();
+        };
+    </script>
 </body>
 </html>
